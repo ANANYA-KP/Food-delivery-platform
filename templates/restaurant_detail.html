@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ restaurant.name }} — FoodRush{% endblock %}
+
+{% block content %}
+<!-- RESTAURANT HEADER -->
+<div style="background:linear-gradient(135deg,{% if restaurant.cuisine_type == 'italian' %}#FF6B35,#FFB347{% elif restaurant.cuisine_type == 'indian' %}#E74C3C,#F39C12{% else %}#3498DB,#1ABC9C{% endif %});padding:40px 24px;color:#fff">
+  <div style="max-width:1000px;margin:0 auto">
+    <div style="font-size:4rem;margin-bottom:12px">
+      {% if restaurant.cuisine_type == 'italian' %}🍕{% elif restaurant.cuisine_type == 'indian' %}🍛{% elif restaurant.cuisine_type == 'chinese' %}🥡{% else %}🍴{% endif %}
+    </div>
+    <h1 style="font-family:'Playfair Display',serif;font-size:2.4rem;margin-bottom:8px">{{ restaurant.name }}</h1>
+    <p style="opacity:.9;margin-bottom:16px">{{ restaurant.description or 'Delicious food delivered to your door' }}</p>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:.9rem">
+      <span>⭐ {{ "%.1f"|format(restaurant.rating) }} ({{ restaurant.total_ratings }} reviews)</span>
+      <span>🕐 {{ restaurant.avg_delivery_time }} min delivery</span>
+      <span>💰 ₹{{ restaurant.delivery_charge|int }} delivery fee</span>
+      <span>📍 {{ restaurant.address }}</span>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      {% if restaurant.is_veg %}<span style="background:rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:.85rem">🟢 Veg Available</span>{% endif %}
+      {% if restaurant.is_non_veg %}<span style="background:rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:.85rem">🔴 Non-Veg Available</span>{% endif %}
+      <span style="background:rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;font-size:.85rem">⏰ {{ restaurant.opening_time }} – {{ restaurant.closing_time }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div style="max-width:1000px;margin:0 auto;padding:32px 24px;display:grid;grid-template-columns:1fr 340px;gap:32px;align-items:start">
+
+  <!-- LEFT: MENU ITEMS -->
+  <div>
+    <!-- Category Tabs -->
+    <div class="tabs" id="category-tabs"></div>
+
+    <!-- Menu Sections -->
+    <div id="menu-sections">
+      {% for category, items in menu_by_category.items() %}
+      <div class="menu-section" data-category="{{ category }}" style="margin-bottom:32px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border)">
+          {{ category|title|replace('_',' ') }}
+        </h2>
+        <div style="background:#fff;border-radius:var(--radius);box-shadow:var(--shadow)">
+          {% for item in items %}
+          <div class="menu-item" id="item-{{ item.id }}">
+            <div style="display:flex;align-items:flex-start;gap:6px">
+              <span class="{% if item.is_veg %}veg-badge{% else %}nonveg-badge{% endif %}" title="{% if item.is_veg %}Veg{% else %}Non-Veg{% endif %}"></span>
+              <div class="item-info">
+                <div class="item-name">
+                  {{ item.name }}
+                  {% if item.is_recommended %}<span class="badge badge-primary" style="font-size:.7rem;margin-left:6px">⭐ Popular</span>{% endif %}
+                </div>
+                <div class="item-desc">{{ item.description or '' }}</div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div class="item-price">₹{{ item.discount_price|int if item.discount_price else item.price|int }}</div>
+                  {% if item.discount_price %}<div style="color:var(--muted);text-decoration:line-through;font-size:.85rem">₹{{ item.price|int }}</div>{% endif %}
+                  {% if item.calories %}<div style="font-size:.78rem;color:var(--muted)">{{ item.calories }} cal</div>{% endif %}
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="flex-shrink:0"
+              onclick="Cart.add({id:{{ item.id }},name:'{{ item.name|replace("'","\\'") }}',price:{{ item.discount_price or item.price }},discount_price:{{ item.discount_price or 'null' }}}, {{ restaurant.id }}, '{{ restaurant.name }}')">
+              + Add
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT: ORDER SUMMARY (sticky) -->
+  <div style="position:sticky;top:88px">
+    <div style="background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden">
+      <div style="padding:20px;border-bottom:1px solid var(--border)">
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem">🛒 Your Order</h3>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:4px">from {{ restaurant.name }}</div>
+      </div>
+      <div id="inline-cart-items" style="padding:16px;min-height:80px">
+        <div style="text-align:center;color:var(--muted);font-size:.9rem;padding:20px 0">Add items to get started</div>
+      </div>
+      <div id="inline-cart-footer" style="padding:16px;border-top:1px solid var(--border);background:var(--bg);display:none">
+        <div style="font-size:.88rem;color:var(--muted);margin-bottom:12px" id="inline-total"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="goCheckout()">
+          Proceed to Checkout →
+        </button>
+        <div style="text-align:center;margin-top:8px;font-size:.8rem;color:var(--muted)">
+          Min. order ₹{{ restaurant.min_order_amount|int }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Build category tabs
+const sections = document.querySelectorAll('.menu-section');
+const tabsEl = document.getElementById('category-tabs');
+sections.forEach((sec, i) => {
+  const cat = sec.dataset.category;
+  const label = cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+  const btn = document.createElement('button');
+  btn.className = 'tab-btn' + (i===0?' active':'');
+  btn.textContent = label;
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sec.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+  tabsEl.appendChild(btn);
+});
+
+// Override Cart render for inline panel
+const origSave = Cart.save.bind(Cart);
+Cart.save = function() {
+  origSave();
+  renderInlineCart();
+};
+
+function renderInlineCart() {
+  const itemsEl = document.getElementById('inline-cart-items');
+  const footerEl = document.getElementById('inline-cart-footer');
+  const totalEl  = document.getElementById('inline-total');
+  const items = Cart.items.filter(i => Cart.restaurantId == {{ restaurant.id }});
+  if (!items.length) {
+    itemsEl.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.9rem;padding:20px 0">Add items to get started</div>';
+    footerEl.style.display = 'none'; return;
+  }
+  itemsEl.innerHTML = items.map(i => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:.88rem;font-weight:500">${i.name}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="qty-btn" onclick="Cart.remove(${i.id})" style="width:24px;height:24px">−</button>
+        <span style="font-weight:700">${i.qty}</span>
+        <button class="qty-btn" onclick="Cart.add({id:${i.id},name:'${i.name.replace(/'/g,"\\'")}',price:${i.price}},{{ restaurant.id }},'{{ restaurant.name }}')" style="width:24px;height:24px">+</button>
+        <span style="font-weight:700;color:var(--primary);min-width:40px;text-align:right">₹${(i.price*i.qty).toFixed(0)}</span>
+      </div>
+    </div>`).join('');
+  const sub = items.reduce((s,i)=>s+i.price*i.qty,0);
+  totalEl.innerHTML = `Subtotal: <b>₹${sub.toFixed(0)}</b> + ₹30 delivery + 5% tax`;
+  footerEl.style.display = 'block';
+}
+
+// Init
+renderInlineCart();
+</script>
+{% endblock %}

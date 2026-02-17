@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}My Orders — FoodRush{% endblock %}
+{% block nav_orders %}active{% endblock %}
+
+{% block content %}
+<div class="page">
+  <h1 class="page-title" style="margin-bottom:28px">📦 My Orders</h1>
+  <div id="orders-content"><div class="spinner"></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STATUS_COLORS = {
+  pending:'warning', confirmed:'info', preparing:'info',
+  ready_for_pickup:'info', picked_up:'info',
+  out_for_delivery:'warning', delivered:'success', cancelled:'danger'
+};
+const STATUS_ICONS = {
+  pending:'⏳', confirmed:'✅', preparing:'👨‍🍳',
+  ready_for_pickup:'📦', picked_up:'🛵',
+  out_for_delivery:'🚀', delivered:'🎉', cancelled:'❌'
+};
+
+async function loadOrders() {
+  if (!Auth.isLoggedIn()) {
+    document.getElementById('orders-content').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔐</div>
+        <h3>Please login to view orders</h3>
+        <button onclick="openModal('login-modal')" class="btn btn-primary" style="margin-top:16px">Login</button>
+      </div>`;
+    return;
+  }
+  try {
+    const orders = await api('GET', '/orders/');
+    if (!orders.length) {
+      document.getElementById('orders-content').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📦</div>
+          <h3>No orders yet</h3>
+          <p>Start ordering delicious food!</p>
+          <a href="/restaurants" class="btn btn-primary" style="margin-top:16px">Browse Restaurants</a>
+        </div>`;
+      return;
+    }
+    document.getElementById('orders-content').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:16px">
+        ${orders.map(o => `
+          <div class="card" style="cursor:pointer" onclick="window.location='/order/${o.id}'">
+            <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <div>
+                <div style="font-weight:700;font-size:1rem;margin-bottom:4px">#${o.order_number}</div>
+                <div style="font-size:.88rem;color:var(--muted)">${new Date(o.created_at).toLocaleString()}</div>
+                <div style="margin-top:6px;font-size:.88rem">${o.order_items?.length||0} item(s) • ₹${o.total_amount.toFixed(0)}</div>
+              </div>
+              <div style="text-align:right">
+                <span class="badge badge-${STATUS_COLORS[o.status]||'info'}">
+                  ${STATUS_ICONS[o.status]||''} ${o.status.replace(/_/g,' ').toUpperCase()}
+                </span>
+                <div style="margin-top:8px;font-size:.82rem;color:var(--muted)">${o.payment_method?.toUpperCase()}</div>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  } catch(e) { document.getElementById('orders-content').innerHTML = `<div class="alert alert-danger">Error loading orders: ${e.message}</div>`; }
+}
+loadOrders();
+</script>
+{% endblock %}

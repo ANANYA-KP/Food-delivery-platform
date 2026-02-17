@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Checkout — FoodRush{% endblock %}
+
+{% block content %}
+<div class="page" style="max-width:800px">
+  <h1 class="page-title" style="margin-bottom:28px">🧾 Checkout</h1>
+
+  <div id="checkout-content">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading your order...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCheckout() {
+  if (!Auth.isLoggedIn()) { window.location.href='/'; return; }
+  if (!Cart.items.length) { window.location.href='/restaurants'; return; }
+
+  let addresses = [];
+  try { addresses = await api('GET', '/users/addresses'); } catch(e) {}
+
+  const sub   = Cart.total();
+  const tax   = sub * 0.05;
+  const del   = 30;
+  const total = sub + tax + del;
+
+  document.getElementById('checkout-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:28px;align-items:start">
+      <div>
+        <!-- Delivery Address -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-body">
+            <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px">📍 Delivery Address</h3>
+            ${addresses.length ? addresses.map(a => `
+              <label style="display:flex;gap:12px;padding:12px;border:2px solid var(--border);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:.2s"
+                     onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                <input type="radio" name="address" value="${a.id}" ${a.is_default?'checked':''} style="margin-top:4px">
+                <div>
+                  <div style="font-weight:600">${a.label} — ${a.address_line1}</div>
+                  <div style="font-size:.85rem;color:var(--muted)">${a.city}, ${a.state} ${a.pincode}</div>
+                </div>
+              </label>`).join('') : ''}
+            <button onclick="showAddAddressForm()" class="btn btn-outline btn-sm" style="margin-top:8px">+ Add New Address</button>
+            <div id="add-address-form" style="display:none;margin-top:16px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group" style="grid-column:1/-1">
+                  <label>Address Line 1</label>
+                  <input id="addr-line1" class="form-control" placeholder="House no, Street name">
+                </div>
+                <div class="form-group">
+                  <label>City</label>
+                  <input id="addr-city" class="form-control" placeholder="City">
+                </div>
+                <div class="form-group">
+                  <label>Pincode</label>
+                  <input id="addr-pin" class="form-control" placeholder="560001">
+                </div>
+                <div class="form-group">
+                  <label>State</label>
+                  <input id="addr-state" class="form-control" placeholder="Karnataka">
+                </div>
+                <div class="form-group">
+                  <label>Label</label>
+                  <select id="addr-label" class="form-control form-select">
+                    <option>Home</option><option>Work</option><option>Other</option>
+                  </select>
+                </div>
+              </div>
+              <button onclick="saveAddress()" class="btn btn-primary btn-sm">Save Address</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment -->
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px">💳 Payment Method</h3>
+            ${[['cod','💵 Cash on Delivery'],['upi','📱 UPI'],['credit_card','💳 Credit Card'],['debit_card','🏦 Debit Card'],['net_banking','🌐 Net Banking']].map(([val,label],i) => `
+              <label style="display:flex;gap:10px;align-items:center;padding:12px;border:2px solid var(--border);border-radius:10px;margin-bottom:10px;cursor:pointer">
+                <input type="radio" name="payment" value="${val}" ${i===0?'checked':''}>
+                <span style="font-weight:500">${label}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- ORDER SUMMARY -->
+      <div style="position:sticky;top:88px">
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px">📦 Order Summary</h3>
+            <div style="font-size:.85rem;color:var(--muted);margin-bottom:12px">from ${Cart.restaurantName}</div>
+            ${Cart.items.map(i => `
+              <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:.9rem">
+                <span>${i.name} × ${i.qty}</span>
+                <span style="font-weight:600">₹${(i.price*i.qty).toFixed(0)}</span>
+              </div>`).join('')}
+            <div style="margin-top:16px">
+              <div class="cart-total-row"><span style="color:var(--muted)">Subtotal</span><span>₹${sub.toFixed(0)}</span></div>
+              <div class="cart-total-row"><span style="color:var(--muted)">Tax (5%)</span><span>₹${tax.toFixed(0)}</span></div>
+              <div class="cart-total-row"><span style="color:var(--muted)">Delivery</span><span>₹${del}</span></div>
+              <div class="cart-total-row grand"><span>Total</span><span style="color:var(--primary)">₹${total.toFixed(0)}</span></div>
+            </div>
+            <div class="form-group" style="margin-top:16px">
+              <label>Promo Code</label>
+              <div style="display:flex;gap:8px">
+                <input id="promo" class="form-control" placeholder="e.g. FIRST50" style="flex:1">
+                <button class="btn btn-ghost btn-sm" onclick="toast('Code will be applied at checkout','info')">Apply</button>
+              </div>
+            </div>
+            <button onclick="placeOrder()" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" id="place-btn">
+              🚀 Place Order — ₹${total.toFixed(0)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function showAddAddressForm() {
+  document.getElementById('add-address-form').style.display = 'block';
+}
+
+async function saveAddress() {
+  try {
+    const addr = await api('POST', '/users/addresses', {
+      label: document.getElementById('addr-label').value,
+      address_line1: document.getElementById('addr-line1').value,
+      city: document.getElementById('addr-city').value,
+      state: document.getElementById('addr-state').value,
+      pincode: document.getElementById('addr-pin').value,
+      is_default: false
+    });
+    toast('Address saved!', 'success');
+    loadCheckout();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function placeOrder() {
+  const addrEl = document.querySelector('input[name=address]:checked');
+  if (!addrEl) { toast('Please select a delivery address', 'warning'); return; }
+  const payEl  = document.querySelector('input[name=payment]:checked');
+  const btn = document.getElementById('place-btn');
+  btn.disabled = true; btn.textContent = 'Placing order...';
+  try {
+    const order = await api('POST', '/orders/', {
+      restaurant_id: parseInt(Cart.restaurantId),
+      delivery_address_id: parseInt(addrEl.value),
+      items: Cart.items.map(i => ({ menu_item_id: i.id, quantity: i.qty })),
+      payment_method: payEl.value,
+      promo_code: document.getElementById('promo')?.value || null
+    });
+    Cart.clear(false);
+    toast('Order placed successfully! 🎉', 'success');
+    setTimeout(() => window.location.href = `/order/${order.id}`, 1000);
+  } catch(e) {
+    toast(e.message, 'error');
+    btn.disabled = false; btn.textContent = `🚀 Place Order`;
+  }
+}
+
+loadCheckout();
+</script>
+{% endblock %}

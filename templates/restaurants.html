@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Restaurants — FoodRush{% endblock %}
+{% block nav_restaurants %}active{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">🍽️ All Restaurants</h1>
+    <span style="color:var(--muted);font-size:.9rem">{{ restaurants|length }} restaurant(s) available</span>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="search-bar">
+    <span>🔍</span>
+    <input type="text" id="search-input" placeholder="Search restaurants or cuisine..." oninput="filterRestaurants()">
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <button class="filter-chip active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-chip" onclick="setFilter('indian', this)">🍛 Indian</button>
+    <button class="filter-chip" onclick="setFilter('italian', this)">🍕 Italian</button>
+    <button class="filter-chip" onclick="setFilter('chinese', this)">🥡 Chinese</button>
+    <button class="filter-chip" onclick="setFilter('fast_food', this)">🍔 Fast Food</button>
+    <button class="filter-chip" onclick="setFilter('veg', this)">🟢 Veg Only</button>
+  </div>
+
+  <!-- SORT -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px">
+    <span style="font-size:.9rem;color:var(--muted)">Sort by:</span>
+    <select class="form-control form-select" style="width:auto;padding:8px 32px 8px 12px" onchange="sortRestaurants(this.value)">
+      <option value="rating">⭐ Rating</option>
+      <option value="delivery_time">🕐 Delivery Time</option>
+      <option value="delivery_charge">💰 Delivery Charge</option>
+    </select>
+  </div>
+
+  <!-- GRID -->
+  <div class="restaurant-grid" id="restaurant-grid">
+    {% for r in restaurants %}
+    <a href="/restaurant/{{ r.id }}" class="card restaurant-card" style="text-decoration:none;color:inherit"
+       data-cuisine="{{ r.cuisine_type or '' }}" data-veg="{{ r.is_veg }}" data-name="{{ r.name|lower }}"
+       data-rating="{{ r.rating }}" data-time="{{ r.avg_delivery_time }}" data-charge="{{ r.delivery_charge }}">
+      <div class="card-img" style="background:linear-gradient(135deg,{% if r.cuisine_type == 'italian' %}#FF6B35,#FFB347{% elif r.cuisine_type == 'indian' %}#E74C3C,#F39C12{% else %}#3498DB,#1ABC9C{% endif %})">
+        {% if r.cuisine_type == 'italian' %}🍕{% elif r.cuisine_type == 'indian' %}🍛{% elif r.cuisine_type == 'chinese' %}🥡{% else %}🍴{% endif %}
+      </div>
+      <div class="info">
+        <div class="name">{{ r.name }}</div>
+        <div style="font-size:.85rem;color:var(--muted)">{{ r.cuisine_type|title if r.cuisine_type else 'Multi-cuisine' }} • {{ r.address[:40] }}...</div>
+        <div class="meta">
+          <span class="rating">⭐ {{ "%.1f"|format(r.rating) }}</span>
+          <span class="tag">🕐 {{ r.avg_delivery_time }} min</span>
+          <span class="tag">₹{{ r.delivery_charge|int }} delivery</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          {% if r.is_veg %}<span class="badge badge-success">🟢 Veg</span>{% endif %}
+          {% if r.is_non_veg %}<span class="badge badge-danger">🔴 Non-Veg</span>{% endif %}
+          {% if r.status == 'approved' and r.is_active %}<span class="badge badge-info">✅ Open</span>{% else %}<span class="badge badge-warning">⏸ Closed</span>{% endif %}
+        </div>
+        <div style="margin-top:10px;font-size:.82rem;color:var(--muted)">Min. order: ₹{{ r.min_order_amount|int }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div id="no-results" style="display:none" class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>No restaurants found</h3>
+    <p>Try a different filter or search term</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFilter = 'all';
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterRestaurants();
+}
+
+function filterRestaurants() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const cards = document.querySelectorAll('.restaurant-card');
+  let visible = 0;
+  cards.forEach(card => {
+    const name = card.dataset.name || '';
+    const cuisine = card.dataset.cuisine || '';
+    const isVeg = card.dataset.veg === 'True';
+    let show = true;
+    if (search && !name.includes(search) && !cuisine.includes(search)) show = false;
+    if (currentFilter !== 'all') {
+      if (currentFilter === 'veg' && !isVeg) show = false;
+      else if (currentFilter !== 'veg' && !cuisine.includes(currentFilter)) show = false;
+    }
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('no-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function sortRestaurants(by) {
+  const grid = document.getElementById('restaurant-grid');
+  const cards = [...grid.querySelectorAll('.restaurant-card')];
+  cards.sort((a, b) => {
+    if (by === 'rating') return parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating);
+    if (by === 'delivery_time') return parseInt(a.dataset.time) - parseInt(b.dataset.time);
+    if (by === 'delivery_charge') return parseInt(a.dataset.charge) - parseInt(b.dataset.charge);
+    return 0;
+  });
+  cards.forEach(c => grid.appendChild(c));
+}
+</script>
+{% endblock %}

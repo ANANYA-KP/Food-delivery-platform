@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}FoodRush — Order Food Online{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+<!-- HERO -->
+<section class="hero">
+  <h1>Hungry? We Got You 🍕</h1>
+  <p>Order from the best restaurants near you. Fast delivery, great food.</p>
+  <div class="btns">
+    <a href="/restaurants" class="btn" style="background:#fff;color:var(--primary)">🍽️ Browse Restaurants</a>
+    <button onclick="openModal('signup-modal')" class="btn" style="background:rgba(255,255,255,.2);color:#fff;border:2px solid #fff">Sign Up Free</button>
+  </div>
+  <div style="margin-top:40px;display:flex;gap:40px;justify-content:center;flex-wrap:wrap;position:relative">
+    <div style="text-align:center"><div style="font-size:2rem;font-weight:900">2+</div><div style="opacity:.8;font-size:.9rem">Restaurants</div></div>
+    <div style="text-align:center"><div style="font-size:2rem;font-weight:900">9</div><div style="opacity:.8;font-size:.9rem">Menu Items</div></div>
+    <div style="text-align:center"><div style="font-size:2rem;font-weight:900">30min</div><div style="opacity:.8;font-size:.9rem">Avg Delivery</div></div>
+  </div>
+</section>
+
+<!-- CUISINES -->
+<section style="padding:48px 24px;max-width:1200px;margin:0 auto">
+  <h2 style="font-size:1.8rem;margin-bottom:8px">What are you craving?</h2>
+  <p style="color:var(--muted);margin-bottom:28px">Browse by cuisine type</p>
+  <div style="display:flex;gap:14px;flex-wrap:wrap">
+    {% for cuisine in cuisines %}
+    <a href="/restaurants?cuisine={{ cuisine.value }}" class="filter-chip">{{ cuisine.icon }} {{ cuisine.label }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- FEATURED RESTAURANTS -->
+<section style="padding:0 24px 60px;max-width:1200px;margin:0 auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <div>
+      <h2 style="font-size:1.8rem;margin-bottom:4px">Top Restaurants</h2>
+      <p style="color:var(--muted)">Popular picks in your area</p>
+    </div>
+    <a href="/restaurants" class="btn btn-outline btn-sm">View All →</a>
+  </div>
+  <div class="restaurant-grid">
+    {% for r in restaurants %}
+    <a href="/restaurant/{{ r.id }}" class="card restaurant-card" style="text-decoration:none;color:inherit">
+      <div class="card-img">{{ r.emoji }}</div>
+      <div class="info">
+        <div class="name">{{ r.name }}</div>
+        <div style="font-size:.85rem;color:var(--muted)">{{ r.cuisine_type|title if r.cuisine_type else 'Multi-cuisine' }}</div>
+        <div class="meta">
+          <span class="rating">⭐ {{ "%.1f"|format(r.rating) }}</span>
+          <span class="tag">🕐 {{ r.avg_delivery_time }} min</span>
+          <span class="tag">₹{{ r.delivery_charge|int }} delivery</span>
+          {% if r.is_veg %}<span class="tag" style="color:#27AE60">🟢 Veg</span>{% endif %}
+        </div>
+        <div style="margin-top:10px;font-size:.82rem;color:var(--muted)">Min. order: ₹{{ r.min_order_amount|int }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section style="background:#fff;padding:60px 24px">
+  <div style="max-width:900px;margin:0 auto;text-align:center">
+    <h2 style="font-size:2rem;margin-bottom:8px">How It Works</h2>
+    <p style="color:var(--muted);margin-bottom:40px">Get food delivered in 3 simple steps</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:32px">
+      <div>
+        <div style="font-size:3rem;margin-bottom:16px">📍</div>
+        <h3 style="font-size:1.1rem;margin-bottom:8px">Choose Restaurant</h3>
+        <p style="color:var(--muted);font-size:.9rem">Browse restaurants by cuisine, rating, or delivery time</p>
+      </div>
+      <div>
+        <div style="font-size:3rem;margin-bottom:16px">🛒</div>
+        <h3 style="font-size:1.1rem;margin-bottom:8px">Add to Cart</h3>
+        <p style="color:var(--muted);font-size:.9rem">Pick your favourite dishes and customize your order</p>
+      </div>
+      <div>
+        <div style="font-size:3rem;margin-bottom:16px">🚀</div>
+        <h3 style="font-size:1.1rem;margin-bottom:8px">Fast Delivery</h3>
+        <p style="color:var(--muted);font-size:.9rem">Track your order live as it comes to your door</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
