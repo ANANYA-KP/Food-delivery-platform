@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🍕 Online Food Delivery Platform
 
 A complete Python + FastAPI backend project built from the Application Requirements document.  
@@ -287,3 +288,6 @@ python main.py
 - Razorpay/Stripe payment integration
 - Twilio SMS for OTP
 - Google Maps API for distance calculation
+=======
+# Food-delivery-platform
+>>>>>>> a4b05cdff13d6a60a8421424fc06171bcb73d71b
